@@ -1,536 +1,596 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>贪食蛇</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>互益 · 服务自己即服务他人</title>
+<style>
+  :root {
+    --bg: #0e1018;
+    --bg2: #151826;
+    --card: #1b1f30;
+    --line: #2a3047;
+    --text: #e7e9f2;
+    --muted: #8b91ab;
+    --self: #5cc8ff;     /* 利己 — 蓝 */
+    --self-dim: #5cc8ff33;
+    --other: #ffb454;    /* 利他 — 暖橙 */
+    --other-dim: #ffb45433;
+    --accent: #7ee0a8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: radial-gradient(1200px 800px at 50% -10%, #1a2036 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+    padding: 0 0 60px;
+  }
 
-    body {
-      background: #0f0f1a;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      gap: 20px;
-    }
+  header {
+    text-align: center;
+    padding: 38px 20px 10px;
+  }
+  header h1 {
+    font-size: 1.7rem;
+    letter-spacing: 6px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--self), var(--accent), var(--other));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header p {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
 
-    h1 {
-      font-size: 2.4rem;
-      font-weight: 700;
-      letter-spacing: 4px;
-      color: #4ade80;
-      text-shadow: 0 0 20px #4ade8066;
-    }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 18px; }
 
-    .scoreboard {
-      display: flex;
-      gap: 40px;
-    }
+  /* ---- 循环可视化 ---- */
+  .loop-stage {
+    display: flex;
+    justify-content: center;
+    margin: 18px 0 8px;
+  }
+  #loop { width: 280px; height: 280px; max-width: 80vw; max-height: 80vw; }
 
-    .score-box {
-      text-align: center;
-    }
+  .meters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 8px 0 26px;
+  }
+  .meter {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 18px;
+  }
+  .meter .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .meter .name { font-size: 0.92rem; letter-spacing: 1px; }
+  .meter .val { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .meter.self .name, .meter.self .val { color: var(--self); }
+  .meter.other .name, .meter.other .val { color: var(--other); }
+  .bar { height: 8px; border-radius: 8px; background: #0d1020; margin-top: 12px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; border-radius: 8px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .meter.self .bar > i { background: linear-gradient(90deg, #2b7fb0, var(--self)); }
+  .meter.other .bar > i { background: linear-gradient(90deg, #b87a2c, var(--other)); }
+  .meter .lvl { font-size: 0.72rem; color: var(--muted); margin-top: 8px; letter-spacing: 1px; }
 
-    .score-label {
-      font-size: 0.75rem;
-      letter-spacing: 2px;
-      color: #888;
-      text-transform: uppercase;
-    }
+  .link-note {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin: -14px 0 26px;
+  }
+  .link-note b { color: var(--accent); font-weight: 600; }
 
-    .score-value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #4ade80;
-      min-width: 4ch;
-    }
+  /* ---- 行动区 ---- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 22px;
+  }
+  .panel h2 { font-size: 1.05rem; margin-bottom: 4px; letter-spacing: 1px; }
+  .panel .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
 
-    #game-wrapper {
-      position: relative;
-    }
+  .seed-toggle { display: flex; gap: 10px; margin-bottom: 14px; }
+  .seed-toggle button {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 12px;
+    padding: 12px 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .seed-toggle button .em { font-size: 1.2rem; display: block; margin-bottom: 2px; }
+  .seed-toggle button.active.self { border-color: var(--self); color: var(--self); background: var(--self-dim); }
+  .seed-toggle button.active.other { border-color: var(--other); color: var(--other); background: var(--other-dim); }
 
-    #canvas {
-      border: 2px solid #4ade8044;
-      border-radius: 8px;
-      display: block;
-      box-shadow: 0 0 40px #4ade8022, inset 0 0 60px #00000066;
-    }
+  textarea {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--text);
+    padding: 13px 14px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    min-height: 64px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
 
-    #overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      background: #0f0f1acc;
-      border-radius: 8px;
-      backdrop-filter: blur(4px);
-    }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+  .chip {
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 20px;
+    padding: 6px 13px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
 
-    #overlay.hidden {
-      display: none;
-    }
+  .submit {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    color: #0e1018;
+    background: linear-gradient(90deg, var(--self), var(--accent), var(--other));
+    transition: transform .12s, filter .2s;
+    font-family: inherit;
+  }
+  .submit:hover { filter: brightness(1.08); }
+  .submit:active { transform: scale(.985); }
 
-    .overlay-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #4ade80;
-    }
+  /* ---- 回响（反射）---- */
+  .echo {
+    margin-top: 16px;
+    border-radius: 14px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, var(--self-dim), var(--other-dim));
+    border: 1px solid var(--line);
+    display: none;
+  }
+  .echo.show { display: block; animation: rise .5s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px);} to {opacity:1; transform:none;} }
+  .echo .lead { font-size: 0.78rem; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px; }
+  .echo .body { font-size: 0.95rem; }
 
-    .overlay-sub {
-      font-size: 1rem;
-      color: #aaa;
-    }
+  /* ---- 共生树 ---- */
+  .tree-stage { display: flex; flex-direction: column; align-items: center; }
+  #tree { width: 100%; max-width: 360px; height: 230px; }
+  .tree-cap { color: var(--muted); font-size: 0.82rem; margin-top: 6px; }
 
-    .final-score {
-      font-size: 1.2rem;
-      color: #e0e0e0;
-    }
+  /* ---- 时间轴 ---- */
+  .timeline { list-style: none; }
+  .timeline li {
+    border-left: 2px solid var(--line);
+    padding: 0 0 18px 18px;
+    position: relative;
+  }
+  .timeline li:last-child { padding-bottom: 0; }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: -7px; top: 4px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+  .timeline li.self::before { background: var(--self); }
+  .timeline li.other::before { background: var(--other); }
+  .timeline .when { font-size: 0.72rem; color: var(--muted); }
+  .timeline .act { font-size: 0.92rem; margin: 2px 0; }
+  .timeline .ret { font-size: 0.8rem; color: var(--muted); }
+  .timeline .ret b.self { color: var(--self); }
+  .timeline .ret b.other { color: var(--other); }
+  .empty { color: var(--muted); font-size: 0.88rem; text-align: center; padding: 14px 0; }
 
-    .btn {
-      padding: 12px 36px;
-      background: #4ade80;
-      color: #0f0f1a;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 2px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
+  .statbar { display: flex; gap: 12px; margin-bottom: 22px; }
+  .stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; text-align: center; }
+  .stat .n { font-size: 1.4rem; font-weight: 700; }
+  .stat .l { font-size: 0.72rem; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
 
-    .btn:hover {
-      background: #86efac;
-      transform: scale(1.05);
-    }
+  .quote { text-align: center; color: var(--muted); font-size: 0.9rem; font-style: italic; padding: 6px 10px 26px; }
 
-    .btn:active {
-      transform: scale(0.97);
-    }
-
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      font-size: 0.82rem;
-      color: #555;
-    }
-
-    .key {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: #1e1e30;
-      border: 1px solid #333;
-      border-radius: 4px;
-      padding: 2px 8px;
-      font-size: 0.78rem;
-      color: #888;
-      min-width: 28px;
-    }
-
-    .mobile-controls {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .mobile-row {
-      display: flex;
-      gap: 6px;
-    }
-
-    .dpad {
-      width: 52px;
-      height: 52px;
-      background: #1e1e30;
-      border: 1px solid #333;
-      border-radius: 8px;
-      font-size: 1.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: background 0.1s;
-      touch-action: manipulation;
-    }
-
-    .dpad:active {
-      background: #2a2a44;
-    }
-
-    @media (max-width: 520px) {
-      h1 { font-size: 1.8rem; }
-      .mobile-controls { display: flex; }
-    }
-
-    @media (hover: none) and (pointer: coarse) {
-      .mobile-controls { display: flex; }
-    }
-  </style>
+  footer { text-align: center; color: #4a506a; font-size: 0.76rem; padding: 10px; }
+  .reset { background: none; border: none; color: #4a506a; font-size: 0.76rem; text-decoration: underline; cursor: pointer; font-family: inherit; }
+</style>
 </head>
 <body>
 
-<h1>贪食蛇</h1>
+<header>
+  <h1>互 益</h1>
+  <p>服务自己，就是服务他人 · 服务他人，就是服务自己</p>
+</header>
 
-<div class="scoreboard">
-  <div class="score-box">
-    <div class="score-label">得分</div>
-    <div class="score-value" id="score">0</div>
-  </div>
-  <div class="score-box">
-    <div class="score-label">最高分</div>
-    <div class="score-value" id="best">0</div>
-  </div>
-  <div class="score-box">
-    <div class="score-label">等级</div>
-    <div class="score-value" id="level">1</div>
-  </div>
-</div>
+<div class="wrap">
 
-<div id="game-wrapper">
-  <canvas id="canvas"></canvas>
-
-  <div id="overlay">
-    <div class="overlay-title" id="overlay-title">贪食蛇</div>
-    <div class="overlay-sub" id="overlay-sub">吃食物长大，别撞墙或自己</div>
-    <div class="final-score" id="final-score"></div>
-    <button class="btn" id="start-btn">开始游戏</button>
+  <!-- 循环动画 -->
+  <div class="loop-stage">
+    <canvas id="loop" width="560" height="560"></canvas>
   </div>
-</div>
 
-<div class="controls">
-  <span class="key">↑</span>
-  <span class="key">↓</span>
-  <span class="key">←</span>
-  <span class="key">→</span>
-  &nbsp;移动 &nbsp;|&nbsp;
-  <span class="key">Space</span>
-  &nbsp;暂停
-</div>
+  <div class="meters">
+    <div class="meter self">
+      <div class="top"><span class="name">利 己</span><span class="val" id="selfVal">0</span></div>
+      <div class="bar"><i id="selfBar"></i></div>
+      <div class="lvl" id="selfLvl">第 1 境</div>
+    </div>
+    <div class="meter other">
+      <div class="top"><span class="name">利 他</span><span class="val" id="otherVal">0</span></div>
+      <div class="bar"><i id="otherBar"></i></div>
+      <div class="lvl" id="otherLvl">第 1 境</div>
+    </div>
+  </div>
+  <div class="link-note">两股能量被同一根线牵着——<b>动一边，另一边必随之而起</b>。</div>
 
-<div class="mobile-controls">
-  <div class="mobile-row">
-    <div class="dpad" id="btn-up">↑</div>
+  <!-- 行动 -->
+  <div class="panel">
+    <h2>种下一念</h2>
+    <div class="sub">这件事，最初是为了……</div>
+    <div class="seed-toggle">
+      <button id="seedSelf" class="self active" data-seed="self"><span class="em">🌱</span>为了自己</button>
+      <button id="seedOther" class="other" data-seed="other"><span class="em">🤝</span>为了他人</button>
+    </div>
+    <textarea id="actInput" placeholder="写下你刚刚做的、或打算做的一件小事……"></textarea>
+    <div class="chips" id="chips"></div>
+    <button class="submit" id="submitBtn">让它流动起来</button>
+    <div class="echo" id="echo">
+      <div class="lead">回 响</div>
+      <div class="body" id="echoBody"></div>
+    </div>
   </div>
-  <div class="mobile-row">
-    <div class="dpad" id="btn-left">←</div>
-    <div class="dpad" id="btn-down">↓</div>
-    <div class="dpad" id="btn-right">→</div>
+
+  <!-- 共生树 -->
+  <div class="panel tree-stage">
+    <h2 style="align-self:flex-start">共生之树</h2>
+    <div class="sub" style="align-self:flex-start">它从两种能量的总和里生长——缺一不可。</div>
+    <canvas id="tree" width="720" height="460"></canvas>
+    <div class="tree-cap" id="treeCap">还是一颗种子，等待第一念。</div>
   </div>
+
+  <!-- 统计 -->
+  <div class="statbar">
+    <div class="stat"><div class="n" id="stTotal">0</div><div class="l">流动次数</div></div>
+    <div class="stat"><div class="n" id="stStreak">0</div><div class="l">连续天数</div></div>
+    <div class="stat"><div class="n" id="stBalance">100%</div><div class="l">平衡度</div></div>
+  </div>
+
+  <!-- 时间轴 -->
+  <div class="panel">
+    <h2>流动的痕迹</h2>
+    <div class="sub">每一念都同时滋养了两端。</div>
+    <ul class="timeline" id="timeline"></ul>
+  </div>
+
+  <div class="quote" id="quote"></div>
+
+  <footer>
+    互益 · 一个关于循环的练习　·　数据仅存于本机
+    <br><br>
+    <button class="reset" id="resetBtn">清空我的记录</button>
+  </footer>
 </div>
 
 <script>
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const overlay = document.getElementById('overlay');
-  const overlayTitle = document.getElementById('overlay-title');
-  const overlaySub = document.getElementById('overlay-sub');
-  const finalScore = document.getElementById('final-score');
-  const startBtn = document.getElementById('start-btn');
-  const scoreEl = document.getElementById('score');
-  const bestEl = document.getElementById('best');
-  const levelEl = document.getElementById('level');
+/* =========================================================
+   互益 — 服务自己即服务他人
+   核心机制:每一念都把能量注入"利己"与"利他"两端。
+   主端 +10,另一端 +6(循环回流)。两端被强制耦合——
+   你无法只喂养一端。平衡时回流更高,体现"互益"。
+========================================================= */
+const STORE_KEY = 'mutual-benefit-v1';
 
-  const GRID = 20;
-  let COLS, ROWS, CELL;
-  let snake, dir, nextDir, food, bonusFood, score, best, gameLoop, state;
-  let bonusTimer = 0;
+const state = load() || { self: 0, other: 0, log: [], days: [] };
 
-  function resize() {
-    const maxW = Math.min(window.innerWidth - 32, 500);
-    const maxH = Math.min(window.innerHeight - 260, 500);
-    const size = Math.min(maxW, maxH);
-    CELL = Math.floor(size / GRID);
-    COLS = GRID;
-    ROWS = GRID;
-    canvas.width = COLS * CELL;
-    canvas.height = ROWS * CELL;
-    if (state === 'running' || state === 'paused') draw();
+// ---- 元素 ----
+const $ = id => document.getElementById(id);
+const selfVal=$('selfVal'), otherVal=$('otherVal'), selfBar=$('selfBar'), otherBar=$('otherBar');
+const selfLvl=$('selfLvl'), otherLvl=$('otherLvl');
+const echo=$('echo'), echoBody=$('echoBody');
+const timeline=$('timeline'), treeCap=$('treeCap');
+
+let seed = 'self';
+
+// ---- 提示词 ----
+const suggestions = {
+  self: ['读了几页书', '好好吃了顿饭', '运动了 20 分钟', '学了点新东西', '早睡', '整理了房间'],
+  other: ['帮同事解了个难题', '陪家人聊了会儿', '回答了陌生人的问题', '夸奖了某人', '让了座', '分享了笔记']
+};
+
+// 回响文案:说明这一念如何同时利及两端
+const echoes = {
+  self: [
+    '你照顾好了自己——一个状态更好的你,正是别人能依靠的人。',
+    '把自己养得明亮,你便有余力去照亮别人。利己,已悄悄成了利他。',
+    '你蓄满了自己的杯子;溢出来的,自会流向他人。',
+    '今天你善待自己;明天你才有底气善待世界。'
+  ],
+  other: [
+    '你帮了别人——这份连结,也回头温暖了你自己。',
+    '给出去的善意,在你心里留下了同样的暖。利他,本就是利己。',
+    '你让别人轻松了一点,世界也对你松了口气。',
+    '帮助别人时,你也成了自己更想成为的那个人。'
+  ]
+};
+
+const quotes = [
+  '"我们靠所得来谋生,靠付出来生活。" — 丘吉尔',
+  '"赠人玫瑰,手有余香。"',
+  '"爱出者爱返,福往者福来。" — 《贾子》',
+  '"独乐乐,不如众乐乐。" — 《孟子》',
+  '"点亮别人的灯,也照亮了自己的路。"',
+  '"上善若水,水利万物而不争。" — 《老子》',
+  '"己欲立而立人,己欲达而达人。" — 《论语》'
+];
+
+// ---- 等级 ----
+const tiers = ['第 1 境 · 涓滴','第 2 境 · 溪流','第 3 境 · 江河','第 4 境 · 湖海','第 5 境 · 汪洋'];
+function tierOf(v){ return tiers[Math.min(tiers.length-1, Math.floor(v/100))]; }
+
+// ---- 渲染 ----
+function render(){
+  selfVal.textContent = state.self;
+  otherVal.textContent = state.other;
+  selfBar.style.width = (state.self%100) + '%';
+  otherBar.style.width = (state.other%100) + '%';
+  selfLvl.textContent = tierOf(state.self);
+  otherLvl.textContent = tierOf(state.other);
+
+  $('stTotal').textContent = state.log.length;
+  $('stStreak').textContent = streak();
+  const tot = state.self + state.other;
+  const bal = tot === 0 ? 100 : Math.round(100 - Math.abs(state.self-state.other)/tot*100);
+  $('stBalance').textContent = bal + '%';
+
+  renderTimeline();
+  drawTree();
+}
+
+function renderTimeline(){
+  if(!state.log.length){ timeline.innerHTML = '<div class="empty">还没有痕迹。种下第一念吧。</div>'; return; }
+  timeline.innerHTML = state.log.slice().reverse().slice(0,12).map(e=>`
+    <li class="${e.seed}">
+      <div class="when">${fmt(e.t)}</div>
+      <div class="act">${e.seed==='self'?'🌱':'🤝'} ${esc(e.text)}</div>
+      <div class="ret">利己 <b class="self">+${e.gainSelf}</b>　利他 <b class="other">+${e.gainOther}</b></div>
+    </li>`).join('');
+}
+
+// ---- 提交一念 ----
+function submit(){
+  const text = $('actInput').value.trim();
+  if(!text){ $('actInput').focus(); return; }
+
+  // 耦合:主端 +10,另一端回流 +6;若两端越平衡,回流越多(最高 +9)
+  const tot = state.self + state.other;
+  const bal = tot === 0 ? 1 : 1 - Math.abs(state.self-state.other)/tot;
+  const back = 6 + Math.round(bal*3);   // 6..9
+  const main = 10;
+
+  let gainSelf, gainOther;
+  if(seed==='self'){ gainSelf=main; gainOther=back; }
+  else { gainOther=main; gainSelf=back; }
+
+  state.self += gainSelf;
+  state.other += gainOther;
+  state.log.push({ text, seed, gainSelf, gainOther, t: Date.now() });
+
+  const today = new Date().toDateString();
+  if(!state.days.includes(today)) state.days.push(today);
+
+  save();
+  render();
+  pulse();
+
+  // 回响
+  const pool = echoes[seed];
+  echoBody.textContent = pool[Math.floor(Math.random()*pool.length)]
+    + `（利己 +${gainSelf} · 利他 +${gainOther}）`;
+  echo.classList.add('show');
+
+  $('actInput').value = '';
+  newQuote();
+}
+
+// ---- 连续天数 ----
+function streak(){
+  if(!state.days.length) return 0;
+  const set = new Set(state.days);
+  let n=0; const d=new Date();
+  // 允许今天还没记,从今天或昨天起算
+  if(!set.has(d.toDateString())) d.setDate(d.getDate()-1);
+  while(set.has(d.toDateString())){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+
+// ---- 工具 ----
+function fmt(t){
+  const d=new Date(t), now=new Date();
+  const same = d.toDateString()===now.toDateString();
+  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+  return (same?'今天':`${d.getMonth()+1}/${d.getDate()}`)+` ${hh}:${mm}`;
+}
+function esc(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function load(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){ return null; } }
+function newQuote(){ $('quote').textContent = quotes[Math.floor(Math.random()*quotes.length)]; }
+
+// ---- 提示词渲染 ----
+function renderChips(){
+  $('chips').innerHTML = suggestions[seed].map(s=>`<span class="chip">${s}</span>`).join('');
+  $('chips').querySelectorAll('.chip').forEach(c=>{
+    c.onclick = ()=>{ $('actInput').value = c.textContent; $('actInput').focus(); };
+  });
+}
+
+// ---- 种类切换 ----
+function setSeed(s){
+  seed = s;
+  $('seedSelf').classList.toggle('active', s==='self');
+  $('seedOther').classList.toggle('active', s==='other');
+  renderChips();
+}
+$('seedSelf').onclick = ()=>setSeed('self');
+$('seedOther').onclick = ()=>setSeed('other');
+$('submitBtn').onclick = submit;
+$('actInput').addEventListener('keydown', e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='Enter') submit(); });
+$('resetBtn').onclick = ()=>{
+  if(confirm('确定清空所有记录吗?此操作不可撤销。')){
+    localStorage.removeItem(STORE_KEY);
+    state.self=0; state.other=0; state.log=[]; state.days=[];
+    echo.classList.remove('show');
+    render();
+  }
+};
+
+/* =========================================================
+   循环动画:两条弧(蓝=利己,橙=利他)首尾相接成环,
+   能量小球沿环流动,象征二者循环互化、不可分割。
+========================================================= */
+const loop = $('loop'), lctx = loop.getContext('2d');
+let flowT = 0, flash = 0;
+function pulse(){ flash = 1; }
+
+function drawLoop(){
+  const W=loop.width, H=loop.height, cx=W/2, cy=H/2, R=W*0.34;
+  lctx.clearRect(0,0,W,H);
+
+  // 两半弧
+  const lw = 26 + flash*10;
+  function arc(a0,a1,grad){
+    lctx.beginPath();
+    lctx.arc(cx,cy,R,a0,a1);
+    lctx.lineWidth=lw; lctx.lineCap='round';
+    lctx.strokeStyle=grad; lctx.stroke();
+  }
+  const gSelf = lctx.createLinearGradient(0,0,W,H);
+  gSelf.addColorStop(0,'#2b7fb0'); gSelf.addColorStop(1,'#5cc8ff');
+  const gOther = lctx.createLinearGradient(W,0,0,H);
+  gOther.addColorStop(0,'#b87a2c'); gOther.addColorStop(1,'#ffb454');
+
+  arc(-Math.PI/2, Math.PI/2, gSelf);
+  arc(Math.PI/2, Math.PI*1.5, gOther);
+
+  // 流动的能量球(双向,体现互相转化)
+  const N=8;
+  for(let i=0;i<N;i++){
+    const p=(flowT + i/N)%1;
+    const ang = p*Math.PI*2 - Math.PI/2;
+    const x=cx+Math.cos(ang)*R, y=cy+Math.sin(ang)*R;
+    lctx.beginPath();
+    lctx.arc(x,y,4.5,0,Math.PI*2);
+    lctx.fillStyle = blend('#5cc8ff','#ffb454', (Math.sin(ang)+1)/2);
+    lctx.shadowColor=lctx.fillStyle; lctx.shadowBlur=12;
+    lctx.fill(); lctx.shadowBlur=0;
   }
 
-  function initGame() {
-    const mid = Math.floor(GRID / 2);
-    snake = [
-      { x: mid, y: mid },
-      { x: mid - 1, y: mid },
-      { x: mid - 2, y: mid },
-    ];
-    dir = { x: 1, y: 0 };
-    nextDir = { x: 1, y: 0 };
-    score = 0;
-    bonusFood = null;
-    bonusTimer = 0;
-    placeFood();
-    updateHUD();
-  }
+  // 中心
+  const tot = state.self+state.other;
+  lctx.beginPath(); lctx.arc(cx,cy,R*0.42,0,Math.PI*2);
+  const cg=lctx.createRadialGradient(cx,cy,2,cx,cy,R*0.42);
+  cg.addColorStop(0,'#1b1f30'); cg.addColorStop(1,'#0e1018');
+  lctx.fillStyle=cg; lctx.fill();
+  lctx.strokeStyle='#2a3047'; lctx.lineWidth=1.5; lctx.stroke();
 
-  function placeFood() {
-    const empty = getEmptyCells();
-    food = empty[Math.floor(Math.random() * empty.length)];
-  }
+  lctx.fillStyle='#e7e9f2'; lctx.textAlign='center'; lctx.textBaseline='middle';
+  lctx.font='700 '+ (W*0.12) +'px system-ui';
+  lctx.fillText(tot, cx, cy-W*0.02);
+  lctx.font='600 '+ (W*0.04) +'px system-ui';
+  lctx.fillStyle='#8b91ab';
+  lctx.fillText('循环总能量', cx, cy+W*0.07);
 
-  function placeBonusFood() {
-    const empty = getEmptyCells().filter(c => !(c.x === food.x && c.y === food.y));
-    if (empty.length === 0) return;
-    bonusFood = empty[Math.floor(Math.random() * empty.length)];
-    bonusTimer = 50;
-  }
+  flowT=(flowT+0.0025)%1;
+  flash*=0.9;
+  requestAnimationFrame(drawLoop);
+}
+function blend(a,b,t){
+  const pa=hx(a), pb=hx(b);
+  const r=Math.round(pa[0]+(pb[0]-pa[0])*t);
+  const g=Math.round(pa[1]+(pb[1]-pa[1])*t);
+  const bl=Math.round(pa[2]+(pb[2]-pa[2])*t);
+  return `rgb(${r},${g},${bl})`;
+}
+function hx(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
 
-  function getEmptyCells() {
-    const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
-    const cells = [];
-    for (let x = 0; x < COLS; x++)
-      for (let y = 0; y < ROWS; y++)
-        if (!occupied.has(`${x},${y}`)) cells.push({ x, y });
-    return cells;
-  }
+/* =========================================================
+   共生树:枝干由 min(self,other) 决定高度(双方共同支撑),
+   叶子数量由 self 与 other 分别贡献两色,
+   体现"任何一端缺席,树都长不起来"。
+========================================================= */
+const tree=$('tree'), tctx=tree.getContext('2d');
+function drawTree(){
+  const W=tree.width, H=tree.height;
+  tctx.clearRect(0,0,W,H);
+  const baseX=W/2, baseY=H-20;
 
-  function getLevel() { return Math.floor(score / 50) + 1; }
-  function getSpeed() { return Math.max(60, 200 - getLevel() * 15); }
+  const tot=state.self+state.other;
+  const growth=Math.min(state.self,state.other); // 双方共同决定主干 —— 关键耦合
+  const trunkH = 30 + Math.min(150, growth*0.9);
 
-  function updateHUD() {
-    scoreEl.textContent = score;
-    bestEl.textContent = best || 0;
-    levelEl.textContent = getLevel();
-  }
+  // 地面
+  tctx.strokeStyle='#2a3047'; tctx.lineWidth=2;
+  tctx.beginPath(); tctx.moveTo(W*0.2,baseY); tctx.lineTo(W*0.8,baseY); tctx.stroke();
 
-  function step() {
-    dir = nextDir;
-    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+  // 递归画枝
+  const depth = tot<10?0 : Math.min(7, 2+Math.floor(growth/25));
+  tctx.strokeStyle='#6b5840'; tctx.lineCap='round';
+  branch(baseX, baseY, -Math.PI/2, trunkH, trunkH*0.16, depth);
 
-    // wall collision
-    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
-      endGame(); return;
-    }
-    // self collision
-    if (snake.some(s => s.x === head.x && s.y === head.y)) {
-      endGame(); return;
-    }
-
-    snake.unshift(head);
-    let ate = false;
-
-    if (head.x === food.x && head.y === food.y) {
-      score += 10;
-      ate = true;
-      placeFood();
-      if (score % 50 === 0) placeBonusFood();
-    } else if (bonusFood && head.x === bonusFood.x && head.y === bonusFood.y) {
-      score += 30;
-      ate = true;
-      bonusFood = null;
-    } else {
-      snake.pop();
-    }
-
-    if (bonusFood) {
-      bonusTimer--;
-      if (bonusTimer <= 0) bonusFood = null;
-    }
-
-    if (ate) {
-      if (score > (best || 0)) best = score;
-      updateHUD();
-      clearInterval(gameLoop);
-      gameLoop = setInterval(step, getSpeed());
-    }
-
-    draw();
-  }
-
-  function draw() {
-    ctx.fillStyle = '#0d0d1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // grid dots
-    ctx.fillStyle = '#ffffff08';
-    for (let x = 0; x < COLS; x++)
-      for (let y = 0; y < ROWS; y++)
-        ctx.fillRect(x * CELL + CELL / 2 - 1, y * CELL + CELL / 2 - 1, 2, 2);
-
-    // food
-    drawFood(food, '#f87171', '#ff000044');
-
-    // bonus food
-    if (bonusFood) {
-      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 150);
-      drawFood(bonusFood, `rgba(250,204,21,${pulse})`, '#facc1544');
-    }
-
-    // snake
-    snake.forEach((seg, i) => {
-      const t = 1 - i / snake.length;
-      const g = Math.floor(80 + 94 * t);
-      ctx.fillStyle = i === 0 ? '#4ade80' : `rgb(20,${g},50)`;
-      const pad = i === 0 ? 1 : 2;
-      ctx.beginPath();
-      ctx.roundRect(
-        seg.x * CELL + pad,
-        seg.y * CELL + pad,
-        CELL - pad * 2,
-        CELL - pad * 2,
-        i === 0 ? 4 : 3
-      );
-      ctx.fill();
-
-      // eyes on head
-      if (i === 0) {
-        ctx.fillStyle = '#0f0f1a';
-        const ex = dir.y !== 0 ? [-3, 3] : [dir.x > 0 ? 4 : -4];
-        const ey = dir.x !== 0 ? [-3, 3] : [dir.y > 0 ? 4 : -4];
-        const cx = seg.x * CELL + CELL / 2;
-        const cy = seg.y * CELL + CELL / 2;
-        if (dir.x !== 0) {
-          ctx.beginPath(); ctx.arc(cx + ex[0] * dir.x, cy - 3, 2, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(cx + ex[0] * dir.x, cy + 3, 2, 0, Math.PI * 2); ctx.fill();
-        } else {
-          ctx.beginPath(); ctx.arc(cx - 3, cy + ey[0] * dir.y, 2, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(cx + 3, cy + ey[0] * dir.y, 2, 0, Math.PI * 2); ctx.fill();
-        }
-      }
-    });
-
-    // paused text
-    if (state === 'paused') {
-      ctx.fillStyle = '#ffffff88';
-      ctx.font = `bold ${CELL * 1.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('已暂停', canvas.width / 2, canvas.height / 2);
-    }
-  }
-
-  function drawFood(pos, color, glow) {
-    const cx = pos.x * CELL + CELL / 2;
-    const cy = pos.y * CELL + CELL / 2;
-    const r = CELL / 2 - 2;
-    const grad = ctx.createRadialGradient(cx - 1, cy - 1, 1, cx, cy, r);
-    grad.addColorStop(0, '#fff');
-    grad.addColorStop(0.3, color);
-    grad.addColorStop(1, color);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-
-  function startGame() {
-    overlay.classList.add('hidden');
-    initGame();
-    state = 'running';
-    clearInterval(gameLoop);
-    gameLoop = setInterval(step, getSpeed());
-  }
-
-  function endGame() {
-    clearInterval(gameLoop);
-    state = 'dead';
-    if (score > (best || 0)) best = score;
-    localStorage.setItem('snake-best', best);
-    updateHUD();
-    overlayTitle.textContent = '游戏结束';
-    overlaySub.textContent = '';
-    finalScore.textContent = `得分：${score}　最高：${best}`;
-    startBtn.textContent = '再玩一次';
-    overlay.classList.remove('hidden');
-  }
-
-  function togglePause() {
-    if (state === 'running') {
-      clearInterval(gameLoop);
-      state = 'paused';
-      draw();
-    } else if (state === 'paused') {
-      state = 'running';
-      gameLoop = setInterval(step, getSpeed());
-    }
-  }
-
-  // keyboard
-  const keyMap = {
-    ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 },
-    ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
-    w: { x: 0, y: -1 }, s: { x: 0, y: 1 },
-    a: { x: -1, y: 0 }, d: { x: 1, y: 0 },
-    W: { x: 0, y: -1 }, S: { x: 0, y: 1 },
-    A: { x: -1, y: 0 }, D: { x: 1, y: 0 },
-  };
-
-  document.addEventListener('keydown', e => {
-    if (e.key === ' ' || e.key === 'Escape') {
-      e.preventDefault();
-      if (state === 'running' || state === 'paused') togglePause();
+  function branch(x,y,ang,len,wid,d){
+    const x2=x+Math.cos(ang)*len, y2=y+Math.sin(ang)*len;
+    tctx.lineWidth=Math.max(1,wid);
+    tctx.beginPath(); tctx.moveTo(x,y); tctx.lineTo(x2,y2); tctx.stroke();
+    if(d<=0){
+      // 叶:按当前两端比例双色着叶
+      const ratio = tot? state.self/tot : .5;
+      const isSelf = Math.random() < ratio;
+      tctx.fillStyle = isSelf? '#5cc8ff' : '#ffb454';
+      tctx.globalAlpha=0.9;
+      tctx.beginPath(); tctx.arc(x2,y2, 4+Math.random()*3, 0, Math.PI*2); tctx.fill();
+      tctx.globalAlpha=1;
       return;
     }
-    const d = keyMap[e.key];
-    if (!d) return;
-    e.preventDefault();
-    if (state !== 'running' && state !== 'paused') return;
-    if (d.x !== 0 && dir.x !== 0) return;
-    if (d.y !== 0 && dir.y !== 0) return;
-    nextDir = d;
-    if (state === 'paused') togglePause();
-  });
-
-  // mobile dpad
-  function mobileDir(d) {
-    if (state !== 'running' && state !== 'paused') return;
-    if (d.x !== 0 && dir.x !== 0) return;
-    if (d.y !== 0 && dir.y !== 0) return;
-    nextDir = d;
-    if (state === 'paused') togglePause();
+    const spread=0.45+Math.random()*0.15;
+    branch(x2,y2,ang-spread,len*0.74,wid*0.7,d-1);
+    branch(x2,y2,ang+spread,len*0.74,wid*0.7,d-1);
+    if(d>3 && Math.random()>0.4) branch(x2,y2,ang+(Math.random()-.5)*0.3,len*0.6,wid*0.6,d-1);
   }
 
-  document.getElementById('btn-up').addEventListener('click', () => mobileDir({ x: 0, y: -1 }));
-  document.getElementById('btn-down').addEventListener('click', () => mobileDir({ x: 0, y: 1 }));
-  document.getElementById('btn-left').addEventListener('click', () => mobileDir({ x: -1, y: 0 }));
-  document.getElementById('btn-right').addEventListener('click', () => mobileDir({ x: 1, y: 0 }));
+  // 树说明
+  if(tot===0) treeCap.textContent='还是一颗种子,等待第一念。';
+  else if(growth<10) treeCap.textContent='幼苗破土——两端都还需滋养。';
+  else if(state.self===0||state.other===0) treeCap.textContent='只有一端在生长,树会失衡。试试另一边。';
+  else treeCap.textContent=`枝繁叶茂。主干高度由较弱的一端(${Math.min(state.self,state.other)})决定——它们彼此成全。`;
+}
 
-  startBtn.addEventListener('click', startGame);
-
-  // swipe support
-  let touchStart = null;
-  canvas.addEventListener('touchstart', e => {
-    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: true });
-  canvas.addEventListener('touchend', e => {
-    if (!touchStart) return;
-    const dx = e.changedTouches[0].clientX - touchStart.x;
-    const dy = e.changedTouches[0].clientY - touchStart.y;
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-    if (Math.abs(dx) > Math.abs(dy)) mobileDir({ x: dx > 0 ? 1 : -1, y: 0 });
-    else mobileDir({ x: 0, y: dy > 0 ? 1 : -1 });
-    touchStart = null;
-  }, { passive: true });
-
-  // init
-  best = parseInt(localStorage.getItem('snake-best')) || 0;
-  bestEl.textContent = best;
-  state = 'idle';
-  window.addEventListener('resize', resize);
-  resize();
-  draw();
+// ---- 启动 ----
+setSeed('self');
+newQuote();
+render();
+drawLoop();
 </script>
 </body>
 </html>
